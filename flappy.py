@@ -12,7 +12,7 @@ from pythonosc import osc_server
 from pythonosc import udp_client
 
 
-FPS = 30
+FPS = 10
 SCREENWIDTH  = 288
 SCREENHEIGHT = 512
 PIPEGAPSIZE  = 100 # gap between upper and lower part of pipe
@@ -60,19 +60,52 @@ try:
 except NameError:
     xrange = range
 
+# Global flag to track if we've received any OSC data
+osc_connected = False
+
+def connection_monitor(unused_addr, *args):
+    """Monitors any incoming OSC message to verify connection"""
+    global osc_connected
+    if not osc_connected:
+        print("OSC Connected! Receiving data from Muse headband.")
+        osc_connected = True
+
+def debug_handler(addr, *args):
+    """Debug: print blink and jaw clench messages"""
+    if "blink" in addr.lower() or "jaw" in addr.lower():
+        print(f"DEBUG: {addr} -> {args}")
+
 def blink_handler(unused_addr, args, blink):
     if blink:
         print("blink")
-        newevent = pygame.event.Event(pygame.locals.KEYDOWN, key=K_SPACE, mod=pygame.locals.KMOD_NONE) #create the event
+        newevent = pygame.event.Event(pygame.locals.KEYDOWN, key=K_UP, mod=pygame.locals.KMOD_NONE) #create the event
+        pygame.event.post(newevent) #add the event to the queue
+
+def jaw_clench_handler(unused_addr, args, jaw_clench):
+    if jaw_clench:
+        print("jaw clench")
+        newevent = pygame.event.Event(pygame.locals.KEYDOWN, key=K_UP, mod=pygame.locals.KMOD_NONE) #create the event
         pygame.event.post(newevent) #add the event to the queue
 
 def start_osc(ip, port):
     dispatcher = dsp.Dispatcher()
+
+    # Add connection monitor for any Muse message
+    dispatcher.map("/muse/*", connection_monitor)
+
+    # Debug: catch all messages to see what's being sent
+    dispatcher.map("/*", debug_handler)
+
+    # Specific handler for blinks
     dispatcher.map("/muse/elements/blink", blink_handler, "EEG")
+
+    # Specific handler for jaw clenches
+    dispatcher.map("/muse/elements/jaw_clench", jaw_clench_handler, "EEG")
 
     server = osc_server.ThreadingOSCUDPServer(
         (ip, port), dispatcher)
     print("Serving on {}".format(server.server_address))
+    print("Waiting for OSC connection from Muse headband...")
     server.serve_forever()
 
 def main():
@@ -80,7 +113,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip",
-                        default="127.0.0.1",
+                        default="10.37.194.91",
                         help="The ip to listen on")
     parser.add_argument("--port",
                         type=int,
@@ -194,7 +227,7 @@ def showWelcomeAnimation():
             if event.type == QUIT or (event.type == KEYDOWN and event.key == K_ESCAPE):
                 pygame.quit()
                 sys.exit()
-            if event.type == KEYDOWN and (event.key == K_SPACE or event.key == K_UP):
+            if event.type == KEYDOWN and (event.key == K_SPACE):
                 # make first flap sound and return values for mainGame
                 SOUNDS['wing'].play()
                 return {
