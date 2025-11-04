@@ -1,7 +1,7 @@
 MuseFlapPyBird
 ===============
 
-Use Muse headband to play Flappy Bird game with blink event.
+Use Muse EEG Headband to Play Flappy Bird and Space Invaders
 
 The original version comes from [sourabhv/FlapPyBird](https://github.com/sourabhv/FlapPyBird).
 
